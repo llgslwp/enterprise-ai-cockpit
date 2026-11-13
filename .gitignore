@@ -1,0 +1,61 @@
+# ===== 环境变量（含密钥，严禁提交）=====
+.env
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ===== Node =====
+node_modules/
+web/dist/
+
+# ===== 本地记忆 / WorkBuddy 工作区（含业务敏感信息）=====
+.workbuddy/
+.agents/
+
+# ===== 企业业务数据（商业机密，严禁开源）=====
+# 业务 Excel 台账（ERP 导出的库存/排产/质量数据）
+data/raw/
+# 知识库原始文件（企业工艺 PDF/制度/经营文档）
+data/knowledge/制度类/
+data/knowledge/工艺类/
+data/knowledge/知识类/
+# 知识库索引（模型向量派生产物，可随时重建）
+data/knowledge/index/
+# 知识库元数据索引（含企业文件名清单）
+data/knowledge/meta.json
+# 排产结果输出
+data/output/
+# 运行时元数据 / 状态文件（含业务文件名清单）
+data/upload_meta.json
+data/8d_closure.json
+
+# ===== 企业机密文档（工艺 / 制度，严禁开源）=====
+docs/产品工艺/
+docs/公司制度/
+# 真实产能数据快照
+docs/大屏视觉参考/大屏数据快照.json
+
+# ===== 内部交接 / 迁移文档（含个人路径、账号信息）=====
+1号电脑衔接说明.md
+2号电脑衔接说明.md
+换电脑衔接说明.md
+同机换账号交接说明.md
+旧机-OpenSpec环境迁移自检说明.md
+旧机-OpenSpec环境迁移自检说明(1).md
+docs/旧机-OpenSpec环境迁移自检说明.md
+
+# ===== 开发规格（含真实数据源、内部路径、腾讯文档 file_id）=====
+质量管理工具开发规格_控制图四预警8D.md
+质量管理模块-开发规格(参考版).md
+
+# ===== 业务示例（含企业流程/字段细节）=====
+example/
+
+# ===== 系统临时文件 =====
+*.lnk
+~$*.xlsx
+.DS_Store
+Thumbs.db

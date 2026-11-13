@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <title>登录 - 企业 AI 驾驶舱</title>
+</head>
+<body>
+  <h1>企业 AI 驾驶舱</h1>
+  {% if error %}<p style="color:red;">{{ error }}</p>{% endif %}
+  <form method="post" action="/login">
+    <label>账号 <input type="text" name="username" required></label><br>
+    <label>密码 <input type="password" name="password" required></label><br>
+    <button type="submit">登录</button>
+  </form>
+</body>
+</html>

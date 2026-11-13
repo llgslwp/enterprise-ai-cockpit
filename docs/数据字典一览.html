@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>库存数据建模成果一览</title>
+<style>
+  :root {
+    --bg: #f7f8fa; --card: #ffffff; --border: #e5e7eb;
+    --text: #1f2328; --muted: #6b7280; --accent: #2563eb; --accent-soft: #eff6ff;
+    --red: #d63031; --green: #00b894;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 24px; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .section { margin-bottom: 28px; }
+  .section h2 { font-size: 17px; margin-bottom: 12px; padding-left: 10px; border-left: 4px solid var(--accent); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .card h3 { font-size: 15px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
+  .card .file { font-size: 12px; color: var(--muted); margin-bottom: 10px; word-break: break-all; }
+  .badge { font-size: 12px; background: var(--accent-soft); color: var(--accent); padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+  .fields { margin-bottom: 10px; }
+  .field-tag { display: inline-block; background: #f1f3f5; border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; margin: 2px 3px 2px 0; font-size: 12px; color: #374151; }
+  .sample { background: #fafbfc; border: 1px dashed var(--border); border-radius: 8px; padding: 10px; font-size: 12px; }
+  .sample .k { color: var(--accent); font-weight: 600; }
+  .sample .v { color: #111827; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; font-size: 13px; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: #f1f3f5; font-weight: 600; color: #374151; }
+  tr:last-child td { border-bottom: none; }
+  .note { background: #fff8e6; border: 1px solid #f0d98c; border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #7a5b00; margin-top: 20px; }
+  .note b { color: #5c4400; }
+  .sheets-list { font-size: 12px; color: var(--muted); max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #fafbfc; }
+  .sheets-list span { display: inline-block; margin: 2px 4px; }
+  .mono { font-family: "SF Mono", Consolas, monospace; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>库存数据建模成果一览</h1>
+  <div class="sub">inventory-data-model · 读取层实测结果（字段原样承接，未做重命名/合并/清洗）· 行数为本次读取快照，随源文件更新而变化</div>
+
+  <div class="section">
+    <h2>一、五类 ERP 库存文件（行数为本次读取快照）</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>毛坯库 <span class="badge">132 行</span></h3>
+        <div class="file">261026毛坯库.xlsx</div>
+        <div class="fields">
+          <span class="field-tag">货品名称</span><span class="field-tag">货品规格</span><span class="field-tag">现有存量</span><span class="field-tag">批号</span>
+        </div>
+        <div class="sample"><span class="k">把手</span> / <span class="k">重型108D</span> → 现有存量 <span class="v">6380</span>（批号 20240313）</div>
+      </div>
+      <div class="card">
+        <h3>半成品库 <span class="badge">374 行</span></h3>
+        <div class="file">261027半成品库.xlsx</div>
+        <div class="fields">
+          <span class="field-tag">货品名称</span><span class="field-tag">货品规格</span><span class="field-tag">库位名称</span><span class="field-tag">现有存量</span><span class="field-tag">特征</span><span class="field-tag">批号</span>
+        </div>
+        <div class="sample"><span class="k">把手</span> / <span class="k">重型108D</span> · 半成品 · <span class="v">166</span> · 绿 · 2607-2-45</div>
+      </div>
+      <div class="card">
+        <h3>外协 <span class="badge">12 行</span></h3>
+        <div class="file">261027外协.xlsx</div>
+        <div class="fields">
+          <span class="field-tag">货品名称</span><span class="field-tag">货品规格</span><span class="field-tag" style="background:#fff0f0;border-color:#f0b8b8;">状态</span><span class="field-tag">现有存量</span><span class="field-tag">特征</span><span class="field-tag">批号</span>
+        </div>
+        <div class="sample"><span class="k">活动钳体</span> / <span class="k">内管钳S61</span> · 外协 · <span class="v">1518</span> · 2610-1-41</div>
+      </div>
+      <div class="card">
+        <h3>车间在产品 <span class="badge">142 行</span></h3>
+        <div class="file">261027车间在产品.xlsx</div>
+        <div class="fields">
+          <span class="field-tag">货品名称</span><span class="field-tag">货品规格</span><span class="field-tag">库位名称</span><span class="field-tag">现有存量</span><span class="field-tag">特征</span><span class="field-tag">批号</span>
+        </div>
+        <div class="sample"><span class="k">把手</span> / <span class="k">重型95D</span> · 机加工 · <span class="v">5170</span> · 2610-1-18</div>
+      </div>
+      <div class="card">
+        <h3>在产品装配 <span class="badge">65 行</span></h3>
+        <div class="file">261027在产品装配.xlsx</div>
+        <div class="fields">
+          <span class="field-tag">货品名称</span><span class="field-tag">货品规格</span><span class="field-tag">库位名称</span><span class="field-tag">现有存量</span><span class="field-tag">特征</span><span class="field-tag">批号</span>
+        </div>
+        <div class="sample"><span class="k">美式钳把-覆膜砂</span> / <span class="k">重型8"</span> · 装配库 · <span class="v">193</span> · 2311-3-33</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>二、成品入出库台账（腾讯文档导出 · 177 个 sheet）</h2>
+    <table>
+      <tr><th>Sheet 类型</th><th>数量</th><th>字段</th><th>用途</th></tr>
+      <tr>
+        <td><b>汇总看板</b></td><td>1 个</td>
+        <td>类别 / 规格 / 特征 + 1~12月「入库·出库·结存」+ 全年入库·出库·年末库存（共 42 列）</td>
+        <td>Web 前端图表数据源</td>
+      </tr>
+      <tr>
+        <td><b>品类明细</b></td><td>176 个</td>
+        <td>日期 / 批号 / 颜色 / 客户名称·库存计划 / 入库数量 / 出库数量 / 结存数量 / 备注</td>
+        <td>生产计算数据源</td>
+      </tr>
+    </table>
+    <div class="sample" style="margin-top:10px;">
+      品类明细示例（加力钳-Q95S-通用，共 198 行）首行：<span class="k">2026-08-01</span> · 期初库存 · 入库 <span class="v">0</span> / 出库 <span class="v">0</span> / 结存 <span class="v">0</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>三、176 个品类明细 sheet 清单</h2>
+    <div class="sheets-list" id="sheets"></div>
+  </div>
+
+  <div class="note">
+    <b>两点提醒：</b><br>
+    ① <b>外协</b>类用「状态」列（值为「外协」），其余四类库存用「库位名称」列——字段差异已按「原样承接」保留，未强行合并。<br>
+    ② 品类明细 sheet 中混有大量「(预留行)」空行，属台账预留位，<b>生产计算时必须过滤</b>，此点留待「生产管理」提案处理。<br>
+    ③ 生产计划（2026年10月份生产计划.xlsx）不在本变更范围，属后续「生产管理」提案的输入。
+  </div>
+</div>
+
+<script>
+  const sheets = ["加力钳-Q95S-通用","加力钳-Z108S-绿","加力钳-Z108S-胜利红","加力钳-Z108S-艺杰红","加力钳-Z132S-吉林","加力钳-Z132S-吉林红","加力钳-Z132S-易尔拓","加力钳-Z132S-绿","加力钳-Z152S-吉林","加力钳-Z152S-吉林红","加力钳-Z152S-绿","加力钳-Z152S-胜利红","加力钳-Z152S-艺杰红","加力钳-Z152S-镀彩","加力钳-Z18-世达","加力钳-Z18-长城","加力钳-Z195S-红","加力钳-Z195S-绿","加力钳-Z210S-绿","加力钳-Z24″-世达","加力钳-Z24″-长城","加力钳-Z36″-世达","加力钳-Z36″-长城","加力钳-Z48″-世达","加力钳-Z48″-长城","加力钳-Z60S-绿","加力钳-Z80S-吉林","加力钳-Z80S-吉林红","加力钳-Z80S-维度红","加力钳-Z80S-绿","加力钳-Z80S-胜利红","加力钳-Z95S-吉林","加力钳-Z95S-吉林红","加力钳-Z95S-易尔拓","加力钳-Z95S-维度","加力钳-Z95S-绿","加力钳-Z95S-胜利红","加力钳-Z95S-艺杰红","加力钳-Z小95S-通用","铸铁管钳-Q08-（200mm)-红","铸铁管钳-Q10-（250mm)-金虎","铸铁管钳-Q12-（300mm)-奥龙","铸铁管钳-Q12-（300mm)-红","铸铁管钳-Q12-（300mm)-金虎","铸铁管钳-Q14-（350mm)-奥龙","铸铁管钳-Q14-（350mm)-金虎","铸铁管钳-Q18-（450mm)-奥龙","铸铁管钳-Q18-（450mm)-金虎","铸铁管钳-Q24-（600mm)-奥龙","铸铁管钳-Q24-（600mm)-金虎","铸铁管钳-Q36-（900mm)-奥龙","铸铁管钳-Q36-（900mm)-通用","铸铁管钳-Q36-（900mm)-金虎","铸铁管钳-Q48-（1200mm)-红","铸铁管钳-Q48-（1200mm)-金虎","铸铁管钳-Q48-（1200mm)-金虎蓝","铸铁管钳-Z08-（200mm)-绿","铸铁管钳-Z08-（200mm)-01-绿","铸铁管钳-Z10-（250mm)-绿","铸铁管钳-Z10-（250mm)-01-绿","铸铁管钳-Z12-（300mm)-红","铸铁管钳-Z12-（300mm)-绿","铸铁管钳-Z12-（300mm)-蓝","铸铁管钳-Z12-（300mm)-01-绿","铸铁管钳-Z14-（350mm)-绿","铸铁管钳-Z14-（350mm)-01-绿","铸铁管钳-Z18-（450mm)-红","铸铁管钳-Z18-（450mm)-绿","铸铁管钳-Z18-（450mm)-01-绿","铸铁管钳-Z24-（600mm)-红","铸铁管钳-Z24-（600mm)-绿","铸铁管钳-Z24-（600mm)-赛磊绿","铸铁管钳-Z24-（600mm)-01-绿","铸铁管钳-Z36-（900mm)-红","铸铁管钳-Z36-（900mm)-绿","铸铁管钳-Z36-（900mm)-赛磊绿","铸铁管钳-Z36-（900mm)-01-绿","铸铁管钳-Z48-（1200mm)-红","铸铁管钳-Z48-（1200mm)-绿","铸铁管钳-Z48-（1200mm)-赛磊绿","铸铁管钳-Z60-（1500mm)-奥龙","铸铁管钳-Z60-（1500mm)-绿","含钛-Z08-（200mm)-01-世达","含钛-Z10-（250mm)-01-世达","含钛-Z10-（250mm)-01-红","含钛-Z12-（300mm)-01-世达","含钛-Z12-（300mm)-01-绿","含钛-Z14-（350mm)-01-世达","含钛-Z14-（350mm)-01-绿","含钛-Z18-（450mm)-01-世达","含钛-Z18-（450mm)-01-红","含钛-Z18-（450mm)-01-绿","含钛-Z24-（600mm)-01-世达","含钛-Z24-（600mm)-01-红","含钛-Z24-（600mm)-01-绿","含钛-Z36-（900mm)-01-世达","含钛-Z36-（900mm)-01-红","含钛-Z36-（900mm)-01-绿","含钛-Z48-（1200mm)-01-世达","含钛-Z48-（1200mm)-01-红","含钛-Z48-（1200mm)-01-绿","钻杆钳-φ101-103-红","钻杆钳-φ101-103-绿","钻杆钳-φ114-117-加力-绿","钻杆钳-φ114-117-加长红","钻杆钳-φ114-117-加长绿","钻杆钳-φ114-117-加长黄","钻杆钳-φ114-117-红","钻杆钳-φ114-117-绿","钻杆钳-φ127-132-浅绿","钻杆钳-φ139-146-浅绿","钻杆钳-φ54-56-加力-绿","钻杆钳-φ54-56-红","钻杆钳-φ54-56-绿","钻杆钳-φ56-58-加长黄","钻杆钳-φ56-58-绿","钻杆钳-φ58-62-绿","钻杆钳-φ70-73-加长加厚绿","钻杆钳-φ70-73-绿","钻杆钳-φ70-73-黄","钻杆钳-φ71-75-加力-绿","钻杆钳-φ71-75-加长红","钻杆钳-φ71-75-加长绿","钻杆钳-φ71-75-红","钻杆钳-φ71-75-绿","钻杆钳-φ76-79-绿","钻杆钳-φ86-91-红","钻杆钳-φ88-93-加长黄","钻杆钳-φ88-93-绿","钻杆钳-φ89-95-加力-绿","钻杆钳-φ89-95-加长绿","钻杆钳-φ89-95-红","钻杆钳-φ89-95-红加长","钻杆钳-φ89-95-绿","钻杆钳-φ91-95-红","内管钳-内管钳S41-绿","内管钳-内管钳S43-红","内管钳-内管钳S43-绿","内管钳-内管钳S43-黄","内管钳-内管钳S43-黄护手","内管钳-内管钳S47-绿","内管钳-内管钳S51-绿","内管钳-内管钳S56-红","内管钳-内管钳S56-绿","内管钳-内管钳S56-黄","内管钳-内管钳S56-黄护手","内管钳-内管钳S57-绿","内管钳-内管钳S57-黄","内管钳-内管钳S61-绿","内管钳-内管钳S71-绿","内管钳-内管钳S73-红","内管钳-内管钳S73-绿","内管钳-内管钳S73-黄","内管钳-内管钳S73-黄护手","内管钳-内管钳S73-黄（退货）","内管钳-内管钳S78-红","内管钳-内管钳S78-绿","内管钳-内管钳S89-绿","内管钳-内管钳S91-绿","内管钳-内管钳S95-红","内管钳-内管钳S95-绿","内管钳-内管钳S95-黄","内管钳-内管钳S95-黄护手","套管钳-φ108-127-绿","套管钳-φ127-146-绿","套管钳-φ127-146-镀锌","套管钳-φ146-168-红","套管钳-φ146-168-绿","套管钳-φ168-183-绿","套管钳-φ70-87-绿","套管钳-φ73-89-绿","套管钳-φ89-108-绿","钻杆钳-φ49-51-绿","钻杆钳-φ64-66-绿","钻杆钳-φ86-91-绿","钻杆钳-φ97-101-绿"];
+  const el = document.getElementById('sheets');
+  sheets.forEach(s => { const sp = document.createElement('span'); sp.textContent = s; el.appendChild(sp); });
+</script>
+</body>
+</html>

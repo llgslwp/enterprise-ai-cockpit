@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生产计划管理</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  :root{
+    --bg-0:#050a1e; --bg-1:#0a1230;
+    --panel:rgba(16,32,72,.55); --panel-border:rgba(70,120,220,.28);
+    --green:#2ee6a8; --red:#ff5b7f;
+    --text:#e8f0ff; --text-dim:#8aa0c8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    background:radial-gradient(1200px 700px at 20% -10%, #12255c 0%, transparent 55%),
+               radial-gradient(1000px 600px at 90% 110%, #0d1e4a 0%, transparent 50%),
+               linear-gradient(160deg,var(--bg-0),var(--bg-1) 55%,#060d24);
+    color:var(--text);
+    font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+    min-height:100vh; padding:22px 28px 30px;
+  }
+  .wrap{max-width:1560px;margin:0 auto;}
+
+  /* 顶部 */
+  .top{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+  .title{font-size:28px;font-weight:700;letter-spacing:2px;
+    text-shadow:0 0 18px rgba(80,140,255,.55);}
+  .badge{
+    background:linear-gradient(135deg,#2b6cff,#3f9bff);color:#fff;
+    padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600;
+    box-shadow:0 0 16px rgba(59,130,255,.55);
+  }
+  .months{margin-left:auto;display:flex;gap:10px;}
+  .mbtn{
+    background:rgba(20,40,90,.5);border:1px solid var(--panel-border);
+    color:var(--text-dim);padding:7px 18px;border-radius:8px;cursor:pointer;
+    font-size:14px;transition:.2s;
+  }
+  .mbtn:hover{color:#fff;border-color:#3f9bff;}
+  .mbtn.active{
+    background:linear-gradient(135deg,#2b6cff,#3f9bff);color:#fff;
+    border-color:transparent;box-shadow:0 0 14px rgba(59,130,255,.6);
+  }
+
+  /* KPI 卡片 */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin:22px 0;}
+  .kpi{
+    background:var(--panel);border:1px solid var(--panel-border);
+    border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;
+    backdrop-filter:blur(4px);
+  }
+  .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+    background:linear-gradient(180deg,#2b6cff,#2ee6a8);}
+  .kpi .lbl{font-size:13px;color:var(--text-dim);}
+  .kpi .val{font-size:34px;font-weight:800;margin:6px 0 2px;
+    font-family:"DIN Alternate","Bahnschrift",sans-serif;}
+  .kpi .sub{font-size:12px;color:var(--text-dim);}
+  .kpi .sub b{color:#cfdfff;font-weight:600;}
+
+  /* 区块标题 */
+  .sec-title{display:flex;align-items:center;gap:10px;margin:24px 0 14px;font-size:17px;font-weight:700;}
+  .sec-title .dot{width:8px;height:8px;border-radius:50%;background:#2b6cff;
+    box-shadow:0 0 10px #2b6cff;}
+  .legend-inline{display:flex;gap:16px;margin-left:14px;font-size:13px;color:var(--text-dim);}
+  .legend-inline i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;}
+
+  /* 环形图网格 */
+  .grid6{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+  .ring-card{
+    background:var(--panel);border:1px solid var(--panel-border);
+    border-radius:14px;padding:10px 8px;text-align:center;
+    backdrop-filter:blur(4px);
+  }
+  .ring-card .rname{font-size:14px;font-weight:600;margin-bottom:4px;color:#dbe6ff;}
+  .ring-box{height:150px;}
+  .ring-card .rfoot{font-size:12px;color:var(--text-dim);}
+  .ring-card .rfoot b{color:#cfdfff;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="title">生产计划管理</div>
+    <div class="badge" id="badge">2026年10月总生产计划</div>
+    <div class="months" id="months"></div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="sec-title">
+    <span class="dot"></span>6 大品种大类（各自独立）
+    <div class="legend-inline">
+      <span><i style="background:var(--green)"></i>已完成</span>
+      <span><i style="background:var(--red)"></i>未完成</span>
+    </div>
+  </div>
+  <div class="grid6" id="grid6"></div>
+
+  <div class="sec-title">
+    <span class="dot"></span>历史 / 当月库存 / 当月订单（各自独立）
+  </div>
+  <div class="grid4" id="grid4"></div>
+</div>
+
+<script>
+// ============ 内嵌真实数据 ============
+const DATA = {
+  "latest": {"month":10,"overall":{"plan":15527,"done":7356,"rate":47.4},
+    "dimensions":[{"key":"历史","plan":2513,"done":2258,"rate":89.9},{"key":"当月库存","plan":9100,"done":3728,"rate":41.0},{"key":"当月订单","plan":1444,"done":929,"rate":64.3},{"key":"世达","plan":2470,"done":441,"rate":17.9}],
+    "products":[{"key":"加力钳","plan":7834,"done":2056,"rate":26.2},{"key":"美式","plan":626,"done":348,"rate":55.6},{"key":"含钛","plan":1630,"done":500,"rate":30.7},{"key":"内管钳","plan":2500,"done":1278,"rate":51.1},{"key":"钻杆钳","plan":1936,"done":2501,"rate":129.2},{"key":"套管钳","plan":1001,"done":673,"rate":67.2}]},
+  "months":{
+    "8":{"month":8,"overall":{"plan":18378,"done":13989,"rate":76.1},"dimensions":[{"key":"历史","plan":1678,"done":1648,"rate":98.2},{"key":"当月库存","plan":9350,"done":8174,"rate":87.4},{"key":"当月订单","plan":5350,"done":3837,"rate":71.7},{"key":"世达","plan":2000,"done":330,"rate":16.5}],"products":[{"key":"加力钳","plan":8257,"done":3709,"rate":44.9},{"key":"美式","plan":700,"done":444,"rate":63.4},{"key":"含钛","plan":743,"done":4,"rate":0.5},{"key":"内管钳","plan":4302,"done":3465,"rate":80.5},{"key":"钻杆钳","plan":3345,"done":5347,"rate":159.9},{"key":"套管钳","plan":1011,"done":1020,"rate":100.9}]},
+    "9":{"month":9,"overall":{"plan":16924,"done":10934,"rate":64.6},"dimensions":[{"key":"历史","plan":2471,"done":1977,"rate":80.0},{"key":"当月库存","plan":9973,"done":7599,"rate":76.2},{"key":"当月订单","plan":1780,"done":860,"rate":48.3},{"key":"世达","plan":2700,"done":498,"rate":18.4}],"products":[{"key":"加力钳","plan":7834,"done":4308,"rate":55.0},{"key":"美式","plan":1343,"done":684,"rate":50.9},{"key":"含钛","plan":1400,"done":0,"rate":0.0},{"key":"内管钳","plan":3748,"done":3206,"rate":85.5},{"key":"钻杆钳","plan":2036,"done":2408,"rate":118.3},{"key":"套管钳","plan":563,"done":328,"rate":58.3}]},
+    "10":{"month":10,"overall":{"plan":15527,"done":7356,"rate":47.4},"dimensions":[{"key":"历史","plan":2513,"done":2258,"rate":89.9},{"key":"当月库存","plan":9100,"done":3728,"rate":41.0},{"key":"当月订单","plan":1444,"done":929,"rate":64.3},{"key":"世达","plan":2470,"done":441,"rate":17.9}],"products":[{"key":"加力钳","plan":7834,"done":2056,"rate":26.2},{"key":"美式","plan":626,"done":348,"rate":55.6},{"key":"含钛","plan":1630,"done":500,"rate":30.7},{"key":"内管钳","plan":2500,"done":1278,"rate":51.1},{"key":"钻杆钳","plan":1936,"done":2501,"rate":129.2},{"key":"套管钳","plan":1001,"done":673,"rate":67.2}]}
+  }
+};
+
+const GREEN = '#2ee6a8', RED = '#ff5b7f';
+const DIM_LABEL = {历史:'历史', 当月库存:'当月库存', 当月订单:'当月订单', 世达:'世达'};
+const PROD_LABEL = {加力钳:'加力钳', 美式:'美重', 含钛:'含钛', 内管钳:'内管钳', 钻杆钳:'钻杆钳', 套管钳:'套管钳'};
+
+let current = 'latest';
+const charts = [];
+
+function pct(d){ // 超100%保持真实值
+  return (d.done / d.plan * 100);
+}
+
+function ringOption(d, color){
+  const rate = pct(d);
+  const done = Math.min(d.done, d.plan); // 完成段最多画到100%
+  const undone = Math.max(0, d.plan - d.done);
+  return {
+    series:[{
+      type:'pie', radius:['62%','84%'], center:['50%','50%'],
+      startAngle:90, clockwise:true,
+      label:{show:false}, labelLine:{show:false},
+      itemStyle:{borderColor:'transparent',borderWidth:0},
+      data:[
+        {value:done, name:'完成', itemStyle:{color:color}},
+        {value:undone, name:'未完成', itemStyle:{color:'rgba(255,255,255,.08)'}}
+      ]
+    }],
+    graphic:[{
+      type:'text', left:'center', top:'38%',
+      style:{text:rate.toFixed(rate>=100?0:1)+'%', fill:'#fff',
+        fontSize:26, fontWeight:700, fontFamily:'Bahnschrift, DIN Alternate'}
+    }]
+  };
+}
+
+function buildKpis(d){
+  const kpis = [
+    {lbl:'总体完成率', val:(d.overall.rate)+'%', sub:`计划 <b>${d.overall.plan}</b> · 完成 <b>${d.overall.done}</b>`},
+    {lbl:'历史块完成率', val:d.dimensions[0].rate+'%', sub:`${d.dimensions[0].plan} / ${d.dimensions[0].done}`},
+    {lbl:'当月库存完成率', val:d.dimensions[1].rate+'%', sub:`${d.dimensions[1].plan} / ${d.dimensions[1].done}`},
+    {lbl:'当月订单完成率', val:d.dimensions[2].rate+'%', sub:`${d.dimensions[2].plan} / ${d.dimensions[2].done}`},
+    {lbl:'世达完成率', val:d.dimensions[3].rate+'%', sub:`${d.dimensions[3].plan} / ${d.dimensions[3].done}`},
+  ];
+  document.getElementById('kpis').innerHTML = kpis.map(k=>`
+    <div class="kpi"><div class="lbl">${k.lbl}</div><div class="val">${k.val}</div><div class="sub">${k.sub}</div></div>
+  `).join('');
+}
+
+function renderRings(){
+  const d = current==='latest' ? DATA.latest : DATA.months[current];
+
+  // 6 品类
+  const g6 = document.getElementById('grid6');
+  g6.innerHTML = d.products.map(p=>`
+    <div class="ring-card">
+      <div class="rname">${PROD_LABEL[p.key]||p.key}</div>
+      <div class="ring-box" id="r6_${p.key}"></div>
+      <div class="rfoot">计划 <b>${p.plan}</b> · 完成 <b>${p.done}</b></div>
+    </div>`).join('');
+
+  // 4 维度
+  const g4 = document.getElementById('grid4');
+  g4.innerHTML = d.dimensions.map(x=>`
+    <div class="ring-card">
+      <div class="rname">${DIM_LABEL[x.key]||x.key}</div>
+      <div class="ring-box" id="r4_${x.key}"></div>
+      <div class="rfoot">计划 <b>${x.plan}</b> · 完成 <b>${x.done}</b></div>
+    </div>`).join('');
+
+  // 销毁旧图表
+  charts.forEach(c=>c.dispose()); charts.length=0;
+
+  d.products.forEach(p=>{
+    const c = echarts.init(document.getElementById('r6_'+p.key));
+    c.setOption(ringOption(p, p.rate>=100 ? '#ffd166' : GREEN));
+    charts.push(c);
+  });
+  d.dimensions.forEach(x=>{
+    const c = echarts.init(document.getElementById('r4_'+x.key));
+    c.setOption(ringOption(x, GREEN));
+    charts.push(c);
+  });
+
+  document.getElementById('badge').textContent =
+    `2026年${current==='latest'?'11':current}月总生产计划`;
+}
+
+function buildMonths(){
+  const order = ['latest','8','9','10'];
+  const labels = {latest:'最新', 8:'2026-08', 9:'2026-09', 10:'2026-10'};
+  document.getElementById('months').innerHTML = order.map(m=>
+    `<button class="mbtn ${m===current?'active':''}" data-m="${m}">${labels[m]}</button>`
+  ).join('');
+  document.querySelectorAll('.mbtn').forEach(b=>b.onclick=()=>{
+    current = b.dataset.m;
+    buildMonths(); renderRings();
+  });
+}
+
+window.addEventListener('resize',()=>charts.forEach(c=>c.resize()));
+buildMonths();
+renderRings();
+</script>
+</body>
+</html>

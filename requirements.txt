@@ -1,0 +1,24 @@
+# ===== 企业AI驾驶舱 依赖清单 =====
+# 【重要】torch 不在本清单内，必须单独装，且【先于】本清单：
+#   原机(无独显):  pip install torch            -> CPU 版
+#   新机(RTX3050): pip install torch --index-url https://download.pytorch.org/whl/cu134   -> CUDA 版
+# 原因：sentence-transformers 依赖 torch，若本清单里带 torch，pip 会默认装 CPU 版，
+#       导致新电脑 GPU 用不上、rerank 卡 125 秒。顺序务必：先装 CUDA 版 torch -> 再装本清单。
+# 详见《换电脑衔接说明.md》第十节。
+
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
+itsdangerous
+openpyxl
+httpx
+formulas
+langchain
+langchain-openai
+langchain-community
+sentence-transformers
+jieba
+numpy
+pypdf
+python-docx
