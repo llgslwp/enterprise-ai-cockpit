@@ -59,3 +59,6 @@ example/
 ~$*.xlsx
 .DS_Store
 Thumbs.db
+
+# ===== 交接/打包产物（不进版本库）=====
+*.tar.gz
