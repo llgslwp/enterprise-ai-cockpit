@@ -57,6 +57,8 @@ RERANK_MODEL = "BAAI/bge-reranker-v2-m3"
 
 # 模型精度：fp32 两个模型合计约 4.5GB，7.8GB 内存的机器会 OOM；
 # 改用 fp16 半精度，内存减半（约 2.2GB），CPU 上已实测可正常推理。
+# 2026-11-13 回迁说明：float16 非 2 号机 GPU 专属，而是 1 号机为省内存（7.8GB）自设、
+# CPU 已实测可推理。回迁后保持 float16 不回退 float32（回退反而 4.5GB 内存、7.8GB 机器会 OOM）。
 MODEL_TORCH_DTYPE = "float16"
 
 # 云端大模型（DeepSeek，OpenAI 兼容；由 .env 覆盖）
@@ -71,10 +73,31 @@ LLM_MODEL = os.environ.get("LLM_MODEL", "deepseek-chat")
 TOP_K_RECALL = 30    # 双路召回各取 top-k（RRF 融合后送入 rerank 的候选数）
 TOP_K_RERANK = 6     # Rerank 后保留的切片数，送入生成
 
-# Rerank 精排参数：限制序列长度 + 分批预测，压低 cross-encoder 的 attention 峰值内存
-# 2026-11-04 新电脑（RTX 3050）上放宽到 1024 追求更优精度（GPU 显存/算力充足，原 512 为旧机 CPU 防 OOM 而降）
-RERANK_MAX_LENGTH = 1024
-RERANK_BATCH_SIZE = 8
+# Rerank 精排参数：按机器算力自动探测，一份代码两机通用，根治「换机器参数冲突」。
+# GPU（CUDA 可用）→ (1024, 8)：高性能，cross-encoder attention 峰值由显存承载；
+# CPU（无独显，7.8GB 小内存）→ (512, 4)：省内存防 OOM（2026-11-13 实测 512/4 可推理）。
+_cuda_cache = None
+
+
+def cuda_available() -> bool:
+    """惰性探测 CUDA（首次调用才 import torch，避免拖慢不碰模型的模块）。
+
+    以 torch.cuda.is_available() 为准——它反映 torch 实际能否用 GPU，
+    而非仅看机器有无显卡（有卡但 torch 是 CPU 版时，同样该走省内存参数）。
+    """
+    global _cuda_cache
+    if _cuda_cache is None:
+        try:
+            import torch
+            _cuda_cache = bool(torch.cuda.is_available())
+        except Exception:
+            _cuda_cache = False
+    return _cuda_cache
+
+
+def rerank_params() -> tuple[int, int]:
+    """按机器算力返回 (max_length, batch_size)，供 reranker 调用时读取。"""
+    return (1024, 8) if cuda_available() else (512, 4)
 
 # Embedding 参数：BGE-M3 默认 8192 上下文，attention 峰值（batch×seq×seq）会撑爆小内存；
 # 本库切片最长约 1200 字，限制 1536 + 缩小批次，峰值内存大幅下降且不截断切片。

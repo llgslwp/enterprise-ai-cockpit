@@ -9,7 +9,7 @@ from __future__ import annotations
 import torch
 
 # 必须先 import config（触发 HF_ENDPOINT 镜像设置），再 import sentence_transformers
-from .config import RERANK_MODEL, MODEL_TORCH_DTYPE, RERANK_MAX_LENGTH, RERANK_BATCH_SIZE, no_proxy
+from .config import RERANK_MODEL, MODEL_TORCH_DTYPE, rerank_params, no_proxy
 from sentence_transformers import CrossEncoder
 
 _reranker: CrossEncoder | None = None
@@ -18,11 +18,12 @@ _reranker: CrossEncoder | None = None
 def get_reranker() -> CrossEncoder:
     global _reranker
     if _reranker is None:
+        _max_length, _ = rerank_params()
         with no_proxy():
             _reranker = CrossEncoder(
                 RERANK_MODEL,
                 model_kwargs={"torch_dtype": getattr(torch, MODEL_TORCH_DTYPE)},
-                max_length=RERANK_MAX_LENGTH,
+                max_length=_max_length,
             )
     return _reranker
 
@@ -37,9 +38,10 @@ def rerank(query: str, docs: list[str], top_k: int | None = None) -> list[tuple[
         return []
     model = get_reranker()
     pairs = [[query, d] for d in docs]
+    _, _batch_size = rerank_params()
     scores = model.predict(
         pairs,
-        batch_size=RERANK_BATCH_SIZE,
+        batch_size=_batch_size,
         show_progress_bar=False,
     )
     order = sorted(range(len(scores)), key=lambda i: -float(scores[i]))
