@@ -28,6 +28,11 @@
 8. **Query 改写 = LLM 指代消解**：多轮对话把「它呢」改写为完整独立 query。
 9. **模块结构**：`modules/knowledge/` 拆 `loaders / chunker / embedder / index / retriever / reranker / router / chain / eval`，职责单一、逐环节可验证。
 10. **前端**：新增「知识库」页（对话流 + 引用溯源展示），替换原智能助手入口。
+11. **关键词索引 = 自实现 Okapi BM25（jieba 分词），不引 rank_bm25**（补记 2026-11-14）：理由——
+    - rank_bm25 默认按空格分词（`str.lower().split()`），对无空格的中文直接失效，必须自传 jieba 分词器；而分词恰是中文检索最不能省、最易错的一环，这步绕不开。
+    - BM25 打分公式本身极简（idf × tf 长度归一化），全类约 40 行，引库与自写的差异微乎其微，引入第三方依赖性价比低。
+    - rank_bm25 的 `BM25Okapi` 是纯内存对象、无序列化接口；本项目「纯文件落地」需把索引 dump 到 `bm25.json` 并 `load_index()` 回读，状态本就要自己管，不如整类自写、数据结构完全可控。
+    - 与决策 3 同源：「代码透明利于展示」——手写能展示检索原理，`import` 一行带过展示不出能力。
 
 ## Risks / Trade-offs
 

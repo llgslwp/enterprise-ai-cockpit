@@ -24,7 +24,10 @@ foreach ($cand in $candidates) {
     if (-not $cand) { continue }
     if ($cand -like "*WindowsApps*") { continue }  # 跳过 Store stub
     try {
-        $null = & $cand -c "import fastapi" 2>$null
+        # 判据 = 项目实际启动必需的核心依赖，而非仅 fastapi。
+        # 教训（2026-11-15）：WorkBuddy 内置旧版 python(3.13.12.old.9800) 有 fastapi
+        # 但缺 langchain/torch 等，仅测 fastapi 会误选它 → main.py import 崩溃、后端起不来。
+        $null = & $cand -c "import fastapi, torch, sentence_transformers, jieba, langchain" 2>$null
         if ($LASTEXITCODE -eq 0) { $Python = $cand; break }
     } catch {
         # stub 或不可用 python 报错时跳过，继续下一个候选
@@ -42,7 +45,7 @@ if (-not $Node) {
 }
 
 if (-not $Python) {
-    Write-Host "错误：未找到带依赖(fastapi)的 Python。请先运行: pip install -r requirements.txt" -ForegroundColor Red
+    Write-Host "错误：未找到带完整依赖(fastapi/torch/langchain等)的 Python。请先运行: pip install -r requirements.txt" -ForegroundColor Red
     exit 1
 }
 if (-not $Node) {
