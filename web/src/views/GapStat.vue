@@ -143,7 +143,7 @@ onMounted(() => {
 <template>
   <div class="gap-stat">
     <div class="page-head">
-      <h2>生产缺口统计</h2>
+      <h2>生产缺口分析</h2>
       <p class="muted">V2.0 排产结果直显：缺口数值由公式引擎精确计算，与 Excel 打开结果一致。</p>
 
       <!-- 排产统计操作区 -->

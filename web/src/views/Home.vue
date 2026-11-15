@@ -13,7 +13,7 @@ const navs = [
   { path: '/upload', label: '文件上传' },
   { label: '生产管理', children: [
     { path: '/planning', label: '生产计划' },
-    { path: '/gap-stat', label: '缺口统计' },
+    { path: '/gap-stat', label: '缺口分析' },
   ] },
   { label: '供应链管理', children: [
     { path: '/inventory/overview', label: '成品总览' },
