@@ -1,0 +1,53 @@
+# ===== CI 门禁 =====
+# 每次 push 到 main 或提 PR 时，GitHub 自动跑三道轻检查：
+#   ① 语法检查（全量 py_compile，不装重依赖）
+#   ② 单元测试（pytest，只装 pytest + openpyxl 两个轻包）
+#   ③ 前端构建（npm ci + vite build）
+# 原则：GitHub 免费 runner 为 2 核 CPU、无 GPU、无密钥，故不碰 torch/langchain/sentence-transformers，
+#      也不放 .env 密钥；重依赖模块（知识库向量化/rerank）不在 CI 上验证，属本机/GPU 机职责。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: 后端 语法检查 + 单元测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 安装最小测试依赖（pytest + openpyxl）
+        run: pip install pytest openpyxl
+
+      - name: 门禁1 语法检查（全量 py_compile）
+        run: python -m compileall -q modules app tests main.py
+
+      - name: 门禁2 单元测试（pytest）
+        run: python -m pytest -q
+
+  frontend:
+    name: 前端 构建
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 安装前端依赖
+        run: npm ci
+        working-directory: web
+
+      - name: 门禁3 前端构建（vite build）
+        run: npm run build
+        working-directory: web
