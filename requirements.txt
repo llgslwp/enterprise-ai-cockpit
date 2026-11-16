@@ -13,7 +13,6 @@ python-multipart
 itsdangerous
 openpyxl
 httpx
-formulas
 langchain
 langchain-openai
 langchain-community

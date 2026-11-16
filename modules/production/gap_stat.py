@@ -1,16 +1,17 @@
 """生产缺口统计（production-planning 能力，网页直显 V2.0 排产结果）。
 
-数据源：data/output/ 下最新的「半成品生产计划V2.0_结果_*.xlsx」。
-该结果文件由排产链路生成：
+数据源：data/raw/半成品生产计划V2.0.xlsx（方案A：排产覆盖基底，gap-stat 读同一份）。
+该文件由排产链路覆盖写入：
 - C~I 列（毛坯库/机加工/热处理/待处理/外协/半成品/装配）为已填数值
 - J/K 列（成品计划）为已填数值（蓝色单元格）
 - L/M/N 列（半成品需求/装配缺口/机加工）为 Excel 公式，无缓存值
 
-本模块用 formulas 库解析并计算 L/M/N 公式，得到与 Excel 打开时完全一致的缺口数值，
-再与 openpyxl 读到的 C~I、J/K 数值、块结构、单元格颜色组装成结构化数据，供前端直显。
+本模块用自研公式求值器（formula_eval.calc_sheet_formulas）解析并计算 L/M/N 公式，
+得到与 Excel 打开时完全一致的缺口数值，再与 openpyxl 读到的 C~I、J/K 数值、
+块结构、单元格颜色组装成结构化数据，供前端直显。
 
 关键：
-- formulas 库的 key 格式为 '["文件名"]sheet名'!单元格（文件名不含路径）。
+- 缺口公式由 formula_eval 计算，结果以 (row, col) 为 key 返回。
 - 列号差异：加力/美式 14 列（J/K 两个成品计划），内管/钻杆/套管 13 列（仅 J）。
 - 借用行（L 列写「见XX」文本）无缺口公式，前端显示「见XX」文本。
 """
@@ -114,7 +115,7 @@ def _num(v) -> Optional[float]:
         return float(v)
     if isinstance(v, str):
         if v.startswith("="):
-            return None  # 公式串，交给 formulas 计算
+            return None  # 公式串，交给自研求值器计算
         try:
             return float(v)
         except (TypeError, ValueError):

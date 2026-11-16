@@ -75,7 +75,7 @@
 
 #### Scenario: 缺口数值精确计算
 - **WHEN** 系统直显排产结果的半成品需求/装配缺口/机加工列
-- **THEN** 用公式引擎（formulas 库）解析并计算 Excel 公式，数值与 Excel 打开结果完全一致，不依赖 Excel 打开
+- **THEN** 用公式引擎（自研 formula_eval 求值器）解析并计算 Excel 公式，数值与 Excel 打开结果完全一致，不依赖 Excel 打开
 
 #### Scenario: 5 品类切换
 - **WHEN** 用户点击顶部品类按钮（加力/美式/内管钳/钻杆钳/套管）
