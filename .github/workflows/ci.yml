@@ -1,10 +1,12 @@
 # ===== CI 门禁 =====
 # 每次 push 到 main 或提 PR 时，GitHub 自动跑三道轻检查：
 #   ① 语法检查（全量 py_compile，不装重依赖）
-#   ② 单元测试（pytest，只装 pytest + openpyxl 两个轻包）
+#   ② 单元测试 + 接口测试（pytest，装 requirements-dev.txt 轻依赖）
 #   ③ 前端构建（npm ci + vite build）
 # 原则：GitHub 免费 runner 为 2 核 CPU、无 GPU、无密钥，故不碰 torch/langchain/sentence-transformers，
-#      也不放 .env 密钥；重依赖模块（知识库向量化/rerank）不在 CI 上验证，属本机/GPU 机职责。
+#      也不放 .env 密钥；重依赖模块（知识库向量化/rerank）不在 CI 上验证，属本机职责。
+# L2 接口测试通过 create_app(include_heavy=False) 只挂载轻依赖路由（auth/生产/库存/质量/文件），
+# 故能在无 GPU 的 CI 上跑；agent(chat)/knowledge(问答) 属重依赖，留 L3 评测层另行处理。
 
 name: CI
 
@@ -25,8 +27,8 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: 安装最小测试依赖（pytest + openpyxl）
-        run: pip install pytest openpyxl
+      - name: 安装测试依赖（pytest + L2 接口测试轻依赖）
+        run: pip install -r requirements-dev.txt
 
       - name: 门禁1 语法检查（全量 py_compile）
         run: python -m compileall -q modules app tests main.py

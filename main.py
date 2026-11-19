@@ -6,61 +6,13 @@
 - 生产期：前端构建产物由本后端静态托管。
 """
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from starlette.middleware.sessions import SessionMiddleware
-
-from app.auth import router as auth_router
 from app.env import load_env
 
 load_env()  # 尽早加载 .env（LLM_API_KEY 等敏感配置），供后续业务模块读取
 
-from modules import production, inventory, quality
-from modules.agent.router import router as agent_router
-from modules.files import router as files_router
-from modules.knowledge import api as knowledge_api
-from modules.knowledge import manage_router as knowledge_manage_router
+from app.create_app import create_app
 
-app = FastAPI(title="企业 AI 驾驶舱")
-
-# 会话中间件（登录态）
-# max_age=None：会话级 cookie，浏览器关闭即失效，每次打开都需重新登录
-# same_site="lax"：同源请求携带 cookie（默认值，显式声明）
-# https_only=False：本地开发走 HTTP，不强制 HTTPS
-app.add_middleware(
-    SessionMiddleware,
-    secret_key="dev-secret-change-me",
-    max_age=None,
-    same_site="lax",
-    https_only=False,
-)
-
-# CORS：允许前端开发端口 + 携带凭证（决策 3）
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# 鉴权接口（/api/auth/*）
-app.include_router(auth_router, prefix="/api")
-
-# 业务模块接口（/api/...）
-app.include_router(production.router, prefix="/api/production", tags=["生产管理"])
-app.include_router(inventory.router, prefix="/api/inventory", tags=["库存管理"])
-app.include_router(quality.router, prefix="/api/quality", tags=["质量管理"])
-app.include_router(files_router, prefix="/api/files", tags=["文件上传"])
-app.include_router(knowledge_api.api_router, prefix="/api/knowledge", tags=["知识库"])
-app.include_router(knowledge_manage_router.router, prefix="/api/knowledge/manage", tags=["知识管理"])
-app.include_router(agent_router, prefix="/api/agent", tags=["智能辅助决策"])
-
-
-@app.get("/api/health")
-def health():
-    return {"code": 0, "message": "ok", "data": {"status": "running"}}
+app = create_app(include_heavy=True)
 
 
 # 知识库问答预热：后台线程预加载 BGE-M3 + reranker 模型。
@@ -79,6 +31,7 @@ def _warmup_knowledge():
 
 # 前端静态资源（生产期托管构建产物；若未构建则回退到健康提示）
 import os
+from fastapi.staticfiles import StaticFiles
 
 _dist = os.path.join(os.path.dirname(__file__), "web", "dist")
 if os.path.isdir(_dist):

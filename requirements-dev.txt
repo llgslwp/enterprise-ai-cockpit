@@ -1,3 +1,16 @@
 # ===== 开发 / CI 依赖（非运行时依赖）=====
 # 单元测试框架（对应 tests/ 目录，CI 门禁也会用到）
 pytest
+
+# ===== L2 接口测试所需轻依赖 =====
+# TestClient 需要 httpx；SessionMiddleware 需要 itsdangerous；
+# 业务模块（production/inventory/quality）读 Excel 需要 openpyxl + numpy；
+# 路由框架需要 fastapi。
+# 注意：刻意【不含】torch/langchain/sentence-transformers/jieba ——
+#       L2 测试只测轻依赖路由（create_app(include_heavy=False)），
+#       这样 CI 免费 runner（无 GPU）也能跑，不碰重依赖。
+httpx
+fastapi
+itsdangerous
+openpyxl
+numpy
