@@ -14,9 +14,11 @@ import pytest
 from modules.production import gap_stat
 from modules.production.capacity import (
     COL_C,
+    COL_F,
     COL_H,
     COL_I,
     _calc_capacity_core,
+    _calc_capacity_jiali_core,
     calc_capacity,
     calc_capacity_all,
 )
@@ -106,6 +108,59 @@ def test_capacity_missing_part_treated_as_zero():
     assert r["瓶颈件"] == ["自由钳外管"]
 
 
+# ---------- 加力钳三维（纯计算，不依赖真实文件） ----------
+
+def _jiali_95_rows():
+    """加力 95 真实台账快照（2026-11-20 实读）：组合件 I 列 + 补件 H/F/I 列。
+
+    真值锚点：三合一 I=945、二合一 I=1277、大钳口 H=1184、固定帽 H=2402、
+    螺母 H=2841、把手 H=817+F=778、内管 H=1176、小钳口 H=1163+I=1277、钳体 H=0、外管 F=1204。
+    """
+    return {
+        "加力钳体+外管+小钳口": {"cells": {COL_I: 945}},
+        "加力钳体+外管": {"cells": {COL_I: 1277}},
+        "加力大钳口": {"cells": {COL_H: 1184}},
+        "固定帽": {"cells": {COL_H: 2402}},
+        "加力螺母": {"cells": {COL_H: 2841}},
+        "把手": {"cells": {COL_H: 817, COL_F: 778}},
+        "加力内管（镀锌）": {"cells": {COL_H: 1176}},
+        "加力小钳口": {"cells": {COL_H: 1163, COL_I: 1277}},
+        "加力钳体": {"cells": {COL_H: 0}},
+        "加力外管": {"cells": {COL_F: 1204, COL_H: 0}},
+    }
+
+
+def test_capacity_jiali_95_snapshot():
+    """加力 95 真实台账快照 → 1176 把 = 945 + 231 + 0。"""
+    r = _calc_capacity_jiali_core(_jiali_95_rows())
+    assert r["总可产把数"] == 1176
+    assert r["第一维度可产"] == 945
+    assert r["第二维度可产"] == 231
+    assert r["第三维度可产"] == 0
+    assert "加力钳体+外管+小钳口" in r["瓶颈件"]
+    assert "加力内管（镀锌）" in r["瓶颈件"]
+    assert "加力钳体" in r["瓶颈件"]
+
+
+def test_capacity_jiali_dim3_triggered():
+    """钳体半成品有货 → 第三维独立取数触发追加。"""
+    rows = _jiali_95_rows()
+    rows["加力钳体"] = {"cells": {COL_H: 500}}
+    r = _calc_capacity_jiali_core(rows)
+    # 第三维独立取数：min(钳体500, 小钳口1163, 大钳口1184, 固定帽2402, 螺母2841, 把手1595, 内管1176, 外管1204) = 500
+    assert r["第三维度可产"] == 500
+    assert r["总可产把数"] == 945 + 231 + 500
+
+
+def test_capacity_jiali_missing_combination():
+    """缺组合件行 → 组合件按 0，该维度为 0。"""
+    rows = _jiali_95_rows()
+    rows.pop("加力钳体+外管+小钳口")
+    r = _calc_capacity_jiali_core(rows)
+    assert r["第一维度可产"] == 0
+    assert "加力钳体+外管+小钳口" in r["瓶颈件"]
+
+
 # ---------- 品类/规格路由（不依赖真实文件的部分） ----------
 
 def test_capacity_unsupported_category():
@@ -170,3 +225,30 @@ def test_capacity_real_file_all_whitelist():
     results = calc_capacity_all()
     specs = [x["规格"] for x in results]
     assert specs == ["54-56", "71-75"]
+
+
+@needs_data
+def test_capacity_real_file_jiali_95():
+    """真实文件：加力 95 → 1176 把，瓶颈含三合一/内管/钳体。"""
+    r = calc_capacity("95", category="加力")
+    assert r["总可产把数"] == 1176
+    assert r["品类"] == "加力"
+    assert r["规格"] == "95D"
+    assert "加力钳体+外管+小钳口" in r["瓶颈件"]
+
+
+@needs_data
+def test_capacity_real_file_jiali_alias():
+    """「加力钳」别名归一化 → 加力。"""
+    r = calc_capacity("95", category="加力钳")
+    assert r["总可产把数"] == 1176
+    assert r["品类"] == "加力"
+
+
+@needs_data
+def test_capacity_real_file_jiali_all():
+    """calc_capacity_all('加力') 只返回 95D 一个规格。"""
+    results = calc_capacity_all("加力")
+    specs = [x["规格"] for x in results]
+    assert specs == ["95D"]
+    assert results[0]["总可产把数"] == 1176
