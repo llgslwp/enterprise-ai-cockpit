@@ -17,6 +17,7 @@ import re
 from langchain.tools import tool
 
 from modules.inventory import flow_stats
+from modules.production import capacity
 from modules.production import dashboard_calc
 from modules.production import gap_stat
 
@@ -412,5 +413,42 @@ def query_production(month: int = 0) -> str:
     return json.dumps(result, ensure_ascii=False)
 
 
+@tool
+def query_capacity(spec: str = "", category: str = "钻杆钳") -> str:
+    """查「现有资源最多能生产多少把」——可产数量（产能），两维口径。
+
+    只要用户的问题涉及「最多能生产多少」「以现有资源能产多少」「产能」「可产数量」
+    「还能产多少」「能凑出多少把」，就调用本工具，不要反问、不要猜测，包括：
+    - 「以现有资源最多能生产多少把71-75」→ spec 传「71-75」；
+    - 「钻杆钳各规格能产多少」→ 不传 spec，从返回的所有规格汇总里读。
+
+    当前仅支持钻杆钳品类；其他品类暂无可产口径，明说「暂不支持」。
+
+    口径（模型照读即可、勿自行判方向）：
+    - 第一维度（装配）：1 把 = 1 组装简易钳体(装配) + 1 活动齿块(半成品) + 1 自由钳外管(半成品)，取三者最少。
+    - 第二维度（组装追加）：活动齿块与自由钳外管都还有剩余时，用配件再组装简易钳体追加。
+    - 返回「总可产把数」与「瓶颈件」，直接照读。
+
+    重要区分（极易搞混，务必记住）：
+    - 本工具算「最多能生产多少把」（可产数量）；问「库存还剩多少」用 query_stock；
+      问「还差多少/缺口」用 query_gap；问「完成率/进度」用 query_production。
+    - 严禁用 query_gap 的「缺口」去减「成品计划」当可产数量（单位不同、口径不同，必错）。
+
+    Args:
+        spec: 规格标签（可选）。如「71-75」「54-56」。不传返回钻杆钳所有规格的汇总。
+        category: 品类（可选），默认「钻杆钳」，当前仅钻杆钳支持产能口径。
+    """
+    if spec.strip():
+        result = capacity.calc_capacity(spec=spec.strip(), category=category)
+    else:
+        results = capacity.calc_capacity_all(category)
+        summary = [
+            {"规格": r.get("规格"), "总可产把数": r.get("总可产把数"), "瓶颈件": r.get("瓶颈件")}
+            for r in results
+        ]
+        result = {"品类": category, "各规格可产": summary}
+    return json.dumps(result, ensure_ascii=False)
+
+
 # 工具清单：模型可调用的全部只读工具（后续按能力域逐步扩充）
-ALL_TOOLS = [query_stock, query_gap, query_production]
+ALL_TOOLS = [query_stock, query_gap, query_production, query_capacity]
