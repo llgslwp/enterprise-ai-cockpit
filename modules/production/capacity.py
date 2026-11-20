@@ -15,11 +15,12 @@
 【加力钳三维】（1 把 = 8 件各 1：钳体/外管/小钳口/大钳口/固定帽/螺母/把手/内管镀锌）
   第一维：三合一组合件(钳体+外管+小钳口, 装配I) + 5 补件(大钳口/固定帽/螺母/把手/内管)
   第二维：二合一组合件(钳体+外管, 装配I) + 6 补件(小钳口/大钳口/固定帽/螺母/把手/内管)
-  第三维：8 件半成品裸件凑装（外管取 待处理+半成品）
+  第三维：8 件半成品裸件凑装（外管取 待处理+半成品）；补件扣减前两维累计消耗
 
 特殊规则：
 - 钻杆钳「组装齿块+方块座」是组合件，产能只看它自身数量。
 - 加力钳「把手」全维度额外计入待处理 F；「外管」第三维取 F+H。
+- 补件在维度间顺序消耗：第三维补件现有量 = 本维取数列原始值 − 前两维累计消耗（钳体/外管是裸件、不被前两维消耗）。
 - 整除一律向下取整（不够 1 套不算）。
 
 数据源 = V2.0 半成品计划表（gap_stat 读同一份）。
@@ -60,11 +61,33 @@ _DIM2 = [
 # 第一维度三件名（用于判定借件规格：任一「见XX」即借件）
 _DIM1_NAMES = [n for n, _, _ in _DIM1]
 
-# 本模块支持产能计算的品类 → 阶段1 支持的独立规格白名单。
-# 其余规格/品类待阶段2：借件规格需竞争分配、借用规格不排产、其他品类口径待对齐。
+# 加力钳 10 规格取数配置（2026-11-20 文鹏口述锁定）。
+# key = 规格数字（self，定位块内行）；share = 7 共享件默认取数数字（英制回退同块公制）；
+# body = 钳体行名称（英制「加力钳体（英寸）」）；borrow = 借用件映射（配件名 -> 被借规格数字）；
+# label = 展示用规格标签。
+_JIALI_SPECS = {
+    "80":  {"share": "80",  "body": "加力钳体",        "label": "80D"},
+    "18":  {"share": "80",  "body": "加力钳体（英寸）", "label": '18"'},
+    "95":  {"share": "95",  "body": "加力钳体",        "label": "95D"},
+    "24":  {"share": "95",  "body": "加力钳体（英寸）", "label": '24"'},
+    "108": {"share": "108", "body": "加力钳体",        "label": "108D", "borrow": {"加力小钳口": "95"}},
+    "132": {"share": "132", "body": "加力钳体",        "label": "132D"},
+    "36":  {"share": "132", "body": "加力钳体（英寸）", "label": '36"'},
+    "152": {"share": "152", "body": "加力钳体",        "label": "152D", "borrow": {"加力小钳口": "132", "固定帽": "132", "把手": "132"}},
+    "195": {"share": "195", "body": "加力钳体",        "label": "195D"},
+    "48":  {"share": "195", "body": "加力钳体（英寸）", "label": '48"'},
+}
+
+# 7 共享件（英制回退公制行、借用规格被借件回退被借行的件）
+_SHARED_PARTS = (
+    "加力小钳口", "加力大钳口", "固定帽", "加力螺母", "把手", "加力内管（镀锌）", "加力外管",
+)
+
+# 本模块支持产能计算的品类 → 阶段1 支持的规格白名单。
+# 加力钳 10 规格单规格孤立算（共享件回退映射，合问竞争属阶段2）；钻杆钳借件/借用规格待阶段2。
 SUPPORTED_SPECS = {
     "钻杆钳": ("54-56", "71-75"),
-    "加力": ("95D",),
+    "加力": tuple(_JIALI_SPECS),
 }
 
 # 品类别名 → V2.0 sheet 名（agent 口语「加力钳」归一化到「加力」）
@@ -253,6 +276,7 @@ def _calc_capacity_jiali_core(rows: Dict[str, Any]) -> Dict[str, Any]:
     bottleneck: List[str] = []
     dim_results: List[Dict[str, Any]] = []
     remaining: Dict[str, int] = {}  # 第一/二维补件顺序消耗池
+    consumed: Dict[str, int] = {}   # 前两维对每个补件的累计消耗（第三维扣减用）
     for idx, dim in enumerate(_JIALI_DIMS):
         asm_name = None
         asm_qty = None
@@ -263,8 +287,8 @@ def _calc_capacity_jiali_core(rows: Dict[str, Any]) -> Dict[str, Any]:
         for name, cols, per, pos in dim["补件"]:
             base = _sum_cells(rows.get(name), cols)
             if idx == 2:
-                # 第三维「半成品里的」独立取数，不继承前两维消耗
-                avail = base
+                # 第三维「裸件凑装」：取本维列，并扣减前两维累计消耗（顺序消耗）
+                avail = max(0, base - consumed.get(name, 0))
             else:
                 if name not in remaining:
                     remaining[name] = base
@@ -279,7 +303,8 @@ def _calc_capacity_jiali_core(rows: Dict[str, Any]) -> Dict[str, Any]:
         # 消耗（仅第一/二维更新剩余池）
         if idx != 2:
             for name, cols, per, pos in dim["补件"]:
-                remaining[name] -= x
+                remaining[name] -= x * per
+                consumed[name] = consumed.get(name, 0) + x * per
         total += x
         for n in bn:
             if n not in bottleneck:
@@ -308,21 +333,64 @@ def _normalize_category(cat: str) -> str:
 
 
 def _normalize_jiali_spec(spec_kw: str):
-    """加力钳 spec 归一化：'95'/'95D' → ('95D', '95')，返回 (公制标签, 取数数字)。"""
+    """加力钳 spec 归一化：'95'/'95D'/'24'/'24"' → '95'/'24'（取第一个数字作规格标识）。"""
     nums = re.findall(r"\d+", str(spec_kw))
     if not nums:
-        return None, None
-    digits = nums[0]
-    return f"{digits}D", digits
+        return None
+    return nums[0]
 
 
 def _find_jiali_block(data: Dict[str, Any], digits: str):
-    """加力钳：找 block_label 第一个数字 == digits 的块（'95'→'95D/24"'）。"""
+    """加力钳：找 block_label 里包含 digits 的块（'18'→'80D/18"'，'95'→'95D/24"'，'108'→'108D'）。"""
     for b in data["products"]["加力"]["blocks"]:
         label_nums = re.findall(r"\d+", str(b["block_label"]))
-        if label_nums and label_nums[0] == digits:
+        if digits in label_nums:
             return b
     return None
+
+
+def _build_jiali_rows(data: Dict[str, Any], digits: str) -> Optional[Dict[str, Any]]:
+    """构造某加力规格的完整取数 rows（供 `_calc_capacity_jiali_core` 使用）。
+
+    取数规则（2026-11-20 文鹏口述锁定）：
+    - 钳体：取本规格行（英制名「加力钳体（英寸）」，统一映射到 key「加力钳体」）。
+    - 组合件（二合一/三合一）：取本规格行。
+    - 7 共享件：借用件跨块取被借规格所在块的真实行（borrow 映射）；其余同块回退 share 行
+      （英制回退同块公制；借用规格的非借用件取本块行）。
+    """
+    cfg = _JIALI_SPECS[digits]
+    block = _find_jiali_block(data, digits)
+    if block is None:
+        return None
+
+    def _rows_of(block_obj: Dict[str, Any], spec_digits: str) -> Dict[str, Any]:
+        return {r["name"]: r for r in block_obj["rows"] if str(r["spec"]).strip() == spec_digits}
+
+    self_rows = _rows_of(block, digits)
+    borrow = cfg.get("borrow", {})
+    result: Dict[str, Any] = {}
+    # 钳体（英制名映射回统一 key）
+    body_name = cfg["body"]
+    if body_name in self_rows:
+        result["加力钳体"] = self_rows[body_name]
+    # 组合件（各规格自有行）
+    for asm in ("加力钳体+外管", "加力钳体+外管+小钳口"):
+        if asm in self_rows:
+            result[asm] = self_rows[asm]
+    # 7 共享件：借用件跨块、其余同块回退 share
+    for part in _SHARED_PARTS:
+        if part in borrow:
+            src_block = _find_jiali_block(data, borrow[part])
+            if src_block is None:
+                continue
+            src_rows = _rows_of(src_block, borrow[part])
+            if part in src_rows:
+                result[part] = src_rows[part]
+        else:
+            share_rows = _rows_of(block, cfg["share"])
+            if part in share_rows:
+                result[part] = share_rows[part]
+    return result
 
 
 def calc_capacity(spec: str = "71-75", category: str = "钻杆钳") -> Dict[str, Any]:
@@ -344,27 +412,26 @@ def calc_capacity(spec: str = "71-75", category: str = "钻杆钳") -> Dict[str,
 
     data = gap_stat.extract_gap_stat(gap_stat.resolve_result_file())
 
-    # 加力钳：规格归一化 + 块内按 B 列规格过滤
+    # 加力钳：规格归一化 + 取数映射构造
     if category == "加力":
-        label, digits = _normalize_jiali_spec(spec)
-        if label is None:
+        digits = _normalize_jiali_spec(spec)
+        if digits is None:
             return {"品类": "加力", "规格": spec, "说明": "未识别规格数字"}
-        if label not in SUPPORTED_SPECS["加力"]:
+        if digits not in _JIALI_SPECS:
             return {
                 "品类": "加力", "规格": spec,
-                "说明": f"当前加力仅支持公制规格 95D；「{spec}」待阶段2（借用/英制规格暂不支持）",
+                "说明": f"未识别加力规格「{spec}」；可选规格数字：{'、'.join(_JIALI_SPECS)}",
             }
-        block = _find_jiali_block(data, digits)
-        if block is None:
+        rows = _build_jiali_rows(data, digits)
+        if rows is None:
             return {
                 "品类": "加力", "规格": spec,
                 "说明": f"未找到规格「{spec}」",
                 "可选规格": [b["block_label"] for b in data["products"]["加力"]["blocks"]],
             }
-        rows = {r["name"]: r for r in block["rows"] if str(r.get("spec", "")).strip() == digits}
         result = _calc_capacity_jiali_core(rows)
         result["品类"] = "加力"
-        result["规格"] = label
+        result["规格"] = _JIALI_SPECS[digits]["label"]
         return result
 
     # 钻杆钳：块精确匹配
@@ -416,15 +483,13 @@ def calc_capacity_all(category: str = "钻杆钳") -> List[Dict[str, Any]]:
         return []
     results = []
     if category == "加力":
-        for label in SUPPORTED_SPECS["加力"]:
-            _, digits = _normalize_jiali_spec(label)
-            block = _find_jiali_block(data, digits)
-            if block is None:
+        for digits in _JIALI_SPECS:
+            rows = _build_jiali_rows(data, digits)
+            if rows is None:
                 continue
-            rows = {r["name"]: r for r in block["rows"] if str(r.get("spec", "")).strip() == digits}
             result = _calc_capacity_jiali_core(rows)
             result["品类"] = category
-            result["规格"] = label
+            result["规格"] = _JIALI_SPECS[digits]["label"]
             results.append(result)
         return results
     for b in data["products"][category]["blocks"]:
