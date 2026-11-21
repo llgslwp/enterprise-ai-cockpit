@@ -21,6 +21,7 @@ from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 
 from modules.knowledge.config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+from modules.common.query_rewrite import rewrite_query
 from .tools import ALL_TOOLS
 
 def _months_ago(n: int) -> int:
@@ -66,14 +67,25 @@ def build_agent():
     )
 
 
-def ask(question: str) -> dict:
+def ask(question: str, history: list[dict] | None = None) -> dict:
     """同步问答入口。
 
-    返回 {"answer": 最终答案文本, "tool_calls": [{name, content}...]}。
-    tool_calls 为本次对话中模型实际调用的工具轨迹，供可追溯 / 对账。
+    history 为最近几轮对话（[{role, content}]）；非空时先做指代消解改写，把
+    「它产能如何」等追问改写为完整独立查询，再进入工具调用（避免单轮失忆答非所问）。
+
+    返回 {"answer": 最终答案文本, "tool_calls": [{name, content}...], "rewritten_query": 改写后查询}。
+    - tool_calls 为本次对话中模型实际调用的工具轨迹，供可追溯 / 对账；
+    - rewritten_query 仅 history 非空时有值（改写失败回退原问题），history 为空时为空串（前端不展示）。
     """
+    rewritten_query = question
+    if history:
+        try:
+            rewritten_query = rewrite_query(question, history) or question
+        except Exception:  # noqa: BLE001  改写失败不影响主链路，回退原问题
+            rewritten_query = question
+
     agent = build_agent()
-    result = agent.invoke({"messages": [{"role": "user", "content": question}]})
+    result = agent.invoke({"messages": [{"role": "user", "content": rewritten_query}]})
     messages = result["messages"]
 
     # 最终答案 = 最后一条有实质内容的 AI 消息
@@ -106,4 +118,4 @@ def ask(question: str) -> dict:
                 "content": (getattr(m, "content", "") or "")[:800],
             })
 
-    return {"answer": answer, "tool_calls": tool_calls}
+    return {"answer": answer, "tool_calls": tool_calls, "rewritten_query": rewritten_query if history else ""}

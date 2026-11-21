@@ -65,6 +65,13 @@ async function send() {
   const msg = input.value.trim()
   if (!msg || sending.value) return
   input.value = ''
+
+  // 构造发给后端的历史：本轮之前最近 6 条有实质内容的消息（排除空占位）
+  const history = messages.value
+    .filter((m) => m.content)
+    .slice(-6)
+    .map((m) => ({ role: m.role, content: m.content }))
+
   messages.value.push({ role: 'user', content: msg })
   messages.value.push({ role: 'assistant', content: '', tool_calls: [], error: false })
   // 必须通过数组索引改「响应式代理」对象，改局部变量不会触发 watch、localStorage 不会保存
@@ -72,11 +79,12 @@ async function send() {
   sending.value = true
   scrollBottom()
   try {
-    const resp = await agentChat(msg)
+    const resp = await agentChat(msg, history)
     const body = resp?.data
     if (body?.code === 0 && body?.data) {
       messages.value[idx].content = body.data.answer || '（无回答）'
       messages.value[idx].tool_calls = body.data.tool_calls || []
+      messages.value[idx].rewritten_query = body.data.rewritten_query || ''
     } else {
       messages.value[idx].content = body?.message || '回答失败'
       messages.value[idx].error = true
@@ -108,6 +116,9 @@ async function send() {
       </p>
 
       <div v-for="(m, i) in messages" :key="i" class="turn" :class="m.role">
+        <div v-if="m.role === 'assistant' && m.rewritten_query" class="understood">
+          已理解：{{ m.rewritten_query }}
+        </div>
         <div
           class="bubble"
           :class="{ loading: m.role === 'assistant' && !m.content, error: m.error }"
@@ -218,6 +229,13 @@ async function send() {
 }
 .turn.assistant {
   align-items: flex-start;
+}
+.understood {
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: #7c88b8;
+  align-self: flex-start;
+  padding-left: 2px;
 }
 .bubble {
   max-width: 78%;

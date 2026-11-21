@@ -11,6 +11,7 @@ from langchain_openai import ChatOpenAI
 
 from .config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
 from .loaders import DOMAIN_NAMES
+from modules.common.query_rewrite import rewrite_query
 
 
 def _llm(temperature: float = 0.0) -> ChatOpenAI:
@@ -88,18 +89,3 @@ def is_offtopic(question: str, llm: ChatOpenAI | None = None) -> bool:
     )
     resp = llm.invoke(prompt)
     return (resp.content or "").strip() == "离题"
-
-
-def rewrite_query(question: str, history: list[dict] | None, llm: ChatOpenAI | None = None) -> str:
-    """多轮 Query 改写：把含指代的追问改写为完整独立查询。无历史时原样返回。"""
-    if not history:
-        return question
-    llm = llm or _llm()
-    conv = "\n".join(f"{h.get('role', 'user')}: {h.get('content', '')}" for h in history[-6:])
-    prompt = (
-        "你负责把用户的多轮对话追问改写成一句完整、独立、不含指代（如「它/这个/那个」）的查询。\n"
-        "若当前问题本身已完整独立，原样返回。只输出改写后的查询，不要解释。\n\n"
-        f"对话历史：\n{conv}\n\n当前追问：{question}"
-    )
-    resp = llm.invoke(prompt)
-    return (resp.content or "").strip() or question

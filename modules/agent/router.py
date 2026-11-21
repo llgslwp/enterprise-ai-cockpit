@@ -11,7 +11,7 @@ POST /chat：接收自然语言问题，调用 modules.agent.agent.ask() 完成
 """
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.deps import require_login
 from modules.agent.agent import ask
@@ -21,6 +21,7 @@ router = APIRouter()
 
 class ChatRequest(BaseModel):
     question: str
+    history: list[dict] = Field(default_factory=list)
 
 
 @router.post("/chat")
@@ -30,7 +31,7 @@ def agent_chat(req: ChatRequest, request: Request, _=Depends(require_login)):
     if not question:
         return {"code": 1, "message": "问题不能为空", "data": None}
     try:
-        result = ask(question)
+        result = ask(question, req.history)
     except Exception as e:  # noqa: BLE001
         return {"code": 1, "message": f"智能助手调用失败：{e}", "data": None}
     return {"code": 0, "message": "ok", "data": result}

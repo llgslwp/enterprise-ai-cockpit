@@ -173,7 +173,7 @@ export function knowledgeToggle(id) {
   return http.post(`/knowledge/manage/${id}/toggle`)
 }
 
-// 智能辅助决策（agent-core 多工具调用）：同步对话，返回 { answer, tool_calls }
-export function agentChat(question) {
-  return http.post('/agent/chat', { question }, { timeout: 60000 })
+// 智能辅助决策（agent-core 多工具调用）：同步对话，返回 { answer, tool_calls, rewritten_query }
+export function agentChat(question, history = []) {
+  return http.post('/agent/chat', { question, history }, { timeout: 60000 })
 }
